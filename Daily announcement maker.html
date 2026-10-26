@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily announcement maker</title>
+<style>
+:root{--bg:#eef2f9;--card:#fff;--ink:#17213b;--muted:#5a6683;--line:#d5dcea;--accent:#3451d1;--accent-ink:#fff;--hi:#ffe066;--field:#f7f9fd;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10152a;--card:#1a2140;--ink:#eaf0ff;--muted:#9aa7c7;--line:#2d3760;--accent:#8ea2ff;--accent-ink:#10152a;--field:#141a33}}
+:root[data-theme="dark"]{--bg:#10152a;--card:#1a2140;--ink:#eaf0ff;--muted:#9aa7c7;--line:#2d3760;--accent:#8ea2ff;--accent-ink:#10152a;--field:#141a33}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.7rem;line-height:1.2;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 18px;max-width:60ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
+summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:1.05rem;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";float:right;color:var(--muted)}
+details[open]>summary::after{content:"–"}
+.body{padding:0 16px 16px}
+label{display:block;font-size:.9rem;font-weight:600;margin:10px 0 0}
+label small{font-weight:400;color:var(--muted)}
+input[type=text],textarea,select{display:block;width:100%;margin-top:4px;padding:9px 10px;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px}
+textarea{resize:vertical;min-height:64px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.two{grid-template-columns:1fr}}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600;margin-top:14px}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+.subj{border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:10px;padding:4px 14px 14px;margin-top:12px;background:var(--field)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
+button{font:inherit;font-weight:700;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink)}
+button.ghost{background:transparent;color:var(--accent)}
+button.danger{border-color:#c0392b;color:#c0392b}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.add{width:100%;margin-top:12px}
+.pv{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--card);border:1px solid var(--line);border-top:8px solid var(--hi);border-radius:12px;overflow:hidden}
+@media (max-width:860px){.pv{position:static}}
+.pvh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.pvh b{font-size:1.05rem}
+pre{margin:0;padding:16px;white-space:pre-wrap;word-break:break-word;font:15px/1.5 ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;max-height:70vh;overflow:auto}
+@media (max-width:860px){pre{max-height:none}}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📢 Daily announcement maker</h1>
+  <p class="sub">Fill in the forms, change any wording under Customize, then copy the finished announcement. Your changes are saved in this browser.</p>
+
+  <div class="grid">
+    <div>
+      <details open><summary>🏫 Class info</summary><div class="body">
+        <div class="two">
+          <label>Section<input type="text" data-bind="intro.section"></label>
+          <label>Grade level<input type="text" data-bind="intro.grade"></label>
+        </div>
+        <label>Officer or officers<input type="text" data-bind="intro.officer"></label>
+        <div class="two">
+          <label>Date of classes<input type="text" data-bind="intro.date" placeholder="e.g. October 27"></label>
+          <label>Weekday or weekend<input type="text" data-bind="intro.dayType" placeholder="Weekday"></label>
+        </div>
+      </div></details>
+
+      <details open><summary>📚 Subjects</summary><div class="body">
+        <div id="subjects"></div>
+        <button class="ghost add" id="addSubject" type="button">Add another subject</button>
+      </div></details>
+
+      <details><summary>🎨 Customize wording</summary><div class="body">
+        <label>Activity types <small>(one per line)</small><textarea data-bind="cfg.types" rows="5"></textarea></label>
+        <label>Handbook reminder under each subject</label>
+        <label class="chk"><input type="checkbox" data-bind="cfg.reminderOn"> Show it</label>
+        <input type="text" data-bind="cfg.reminder" aria-label="Handbook reminder text">
+        <label>Collector notice under each subject</label>
+        <label class="chk"><input type="checkbox" data-bind="cfg.noticeOn"> Show it</label>
+        <textarea data-bind="cfg.notice" rows="3" aria-label="Collector notice text"></textarea>
+        <label>Anonymous message note</label>
+        <label class="chk"><input type="checkbox" data-bind="cfg.voiceOn"> Show it</label>
+        <textarea data-bind="cfg.voice" rows="4" aria-label="Anonymous message text"></textarea>
+        <label>Final section heading<input type="text" data-bind="cfg.closingHead"></label>
+        <label>Final section text <small>(used when you leave it empty below)</small><textarea data-bind="cfg.closing" rows="2"></textarea></label>
+        <label>Final section text for today <small>(optional)</small><textarea data-bind="intro.closingToday" rows="2" placeholder="Leave empty to use the default text"></textarea></label>
+        <div class="row"><span class="hint">Resets every field and all wording.</span><button class="danger ghost" id="reset" type="button">Reset everything</button></div>
+      </div></details>
+    </div>
+
+    <div class="pv" aria-live="polite">
+      <div class="pvh"><b>Live preview</b><button id="copy" type="button">Copy announcement</button></div>
+      <pre id="out"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+var KEY = "daily-announcement-maker-v1";
+var DEFAULTS = {
+  intro: {section:"", grade:"", officer:"", date:"", dayType:"", closingToday:""},
+  cfg: {
+    types: "PTASK\nHomework\nSitwork\nOral Recitation\nPalaro",
+    reminderOn: true, reminder: "📌 Reminder: Follow school handbook rules.",
+    noticeOn: true, notice: "⚠️ If the primary collector is unavailable, hold items and wait for further instructions from the Collector or Class President.",
+    voiceOn: true, voice: "💌 Everyone in this section can share anything in the additional announcement anonymously and privately by sending it to any officer or the president! 🤫✨ We make sure it follows the Student Handbook and stays anonymous! 📌",
+    closingHead: "🎉 ADDITIONAL ANNOUNCEMENT", closing: "Have a productive day, everyone! 🌟"
+  }
+};
+function blankSubject(){return {subject:"",type:"",instructions:"",guide:"",source:"",deadline:"",teacher:""};}
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function load(){
+  var s = {intro:clone(DEFAULTS.intro), cfg:clone(DEFAULTS.cfg), subjects:[blankSubject()]};
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(raw){var l = JSON.parse(raw);
+      Object.assign(s.intro, l.intro||{}); Object.assign(s.cfg, l.cfg||{});
+      if(Array.isArray(l.subjects) && l.subjects.length) s.subjects = l.subjects;}
+  }catch(e){}
+  return s;
+}
+function save(){try{localStorage.setItem(KEY, JSON.stringify(S));}catch(e){}}
+var S = load();
+
+function esc(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function types(){var t = S.cfg.types.split("\n").map(function(x){return x.trim();}).filter(Boolean); return t.length?t:["N/A"];}
+function T(v,f){v=(v||"").trim(); return v||(f===undefined?"N/A":f);}
+
+function build(){
+  var i = S.intro, c = S.cfg, L = [];
+  var d = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  L.push("📢 OFFICIAL DAILY ANNOUNCEMENT","");
+  L.push("👋 Hello students of "+T(i.section)+", Grade "+T(i.grade)+"!");
+  L.push("👤 Prepared by: "+T(i.officer));
+  L.push("📅 Date: "+T(i.date)+" ("+T(i.dayType)+")");
+  L.push("🕒 Announcement Made At: "+d,"");
+  L.push("📚 SUBJECT ANNOUNCEMENTS");
+  S.subjects.forEach(function(s,n){
+    L.push("","📖 SUBJECT "+(n+1)+": "+T(s.subject),"🎯 Type of Activity: "+T(s.type||types()[0]),"");
+    L.push("📝 Instructions:",T(s.instructions),"","💡 Student Guide:",T(s.guide));
+    if(c.reminderOn && c.reminder.trim()) L.push(c.reminder.trim());
+    L.push("","🔗 Source Material:",T(s.source,"Source unavailable"),"");
+    L.push("📨 Turn-In & Submission Details:","⏰ Deadline: "+T(s.deadline),"👤 Submit to: "+T(s.teacher));
+    if(c.noticeOn && c.notice.trim()) L.push(c.notice.trim());
+  });
+  if(c.voiceOn && c.voice.trim()) L.push("",c.voice.trim());
+  L.push("",c.closingHead.trim(),T(i.closingToday,T(c.closing,"")),"","📢 END OF DAILY ANNOUNCEMENT");
+  return L.join("\n");
+}
+var out = document.getElementById("out");
+function render(){out.textContent = build();}
+
+function renderSubjects(){
+  var opts = types();
+  document.getElementById("subjects").innerHTML = S.subjects.map(function(s,n){
+    var cur = s.type || opts[0];
+    var list = opts.indexOf(cur)<0 ? opts.concat([cur]) : opts;
+    var o = list.map(function(t){return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';}).join("");
+    function f(k,label,tag){
+      var v = esc(s[k]||"");
+      return tag==="ta" ? '<label>'+label+'<textarea rows="3" data-i="'+n+'" data-k="'+k+'">'+v+'</textarea></label>'
+                        : '<label>'+label+'<input type="text" data-i="'+n+'" data-k="'+k+'" value="'+v+'"></label>';
+    }
+    return '<div class="subj"><div class="row"><b>Subject '+(n+1)+'</b>'+
+      (S.subjects.length>1?'<button class="ghost danger" type="button" data-del="'+n+'">Remove</button>':'')+'</div>'+
+      f("subject","Subject name")+
+      '<label>Type of activity<select data-i="'+n+'" data-k="type">'+o+'</select></label>'+
+      f("instructions","Instructions or teacher’s discussion","ta")+
+      f("guide","Student guide or examples","ta")+
+      f("source","Source material or link")+
+      '<div class="two">'+f("deadline","Submission day and time")+f("teacher","Teacher or collector")+'</div></div>';
+  }).join("");
+}
+
+function setPath(path,val){var p=path.split("."); S[p[0]][p[1]]=val;}
+function getPath(path){var p=path.split("."); return S[p[0]][p[1]];}
+function fillStatic(){
+  document.querySelectorAll("[data-bind]").forEach(function(el){
+    var v = getPath(el.getAttribute("data-bind"));
+    if(el.type==="checkbox") el.checked = !!v; else el.value = v;
+  });
+}
+
+document.addEventListener("input", function(e){
+  var el = e.target;
+  if(el.hasAttribute("data-bind")){
+    var path = el.getAttribute("data-bind");
+    setPath(path, el.type==="checkbox" ? el.checked : el.value);
+    if(path==="cfg.types") renderSubjects();
+  } else if(el.hasAttribute("data-k")){
+    S.subjects[+el.getAttribute("data-i")][el.getAttribute("data-k")] = el.value;
+  } else return;
+  save(); render();
+});
+document.addEventListener("click", function(e){
+  var el = e.target.closest("button"); if(!el) return;
+  if(el.hasAttribute("data-del")){S.subjects.splice(+el.getAttribute("data-del"),1); renderSubjects();}
+  else if(el.id==="addSubject"){S.subjects.push(blankSubject()); renderSubjects();
+    var last = document.querySelector(".subj:last-child input"); if(last) last.focus();}
+  else if(el.id==="reset"){
+    if(el.getAttribute("data-armed")!=="1"){el.setAttribute("data-armed","1"); el.textContent="Click again to reset";
+      setTimeout(function(){el.removeAttribute("data-armed"); el.textContent="Reset everything";},3000); return;}
+    try{localStorage.removeItem(KEY);}catch(x){}
+    S = load(); fillStatic(); renderSubjects(); el.removeAttribute("data-armed"); el.textContent="Reset everything";
+  } else if(el.id==="copy"){copyText(build(), el); return;}
+  else return;
+  save(); render();
+});
+
+function copyText(text, btn){
+  function done(ok){btn.textContent = ok ? "Copied" : "Select the preview and copy it"; setTimeout(function(){btn.textContent="Copy announcement";},1800);}
+  function fallback(){
+    try{var r=document.createRange(); r.selectNodeContents(out); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      done(document.execCommand("copy"));}catch(e){done(false);}
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){done(true);},fallback);}
+  else fallback();
+}
+
+fillStatic(); renderSubjects(); render();
+</script>
+</body>
+</html>
