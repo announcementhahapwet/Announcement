@@ -45,6 +45,15 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 pre{margin:0;padding:16px;white-space:pre-wrap;word-break:break-word;font:15px/1.5 ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;max-height:70vh;overflow:auto}
 @media (max-width:860px){pre{max-height:none}}
 .hint{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.tabs button{background:transparent;color:var(--accent)}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+[hidden]{display:none!important}
+.cl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.cl b{flex:1 1 100%}
+.st{display:flex;flex-wrap:wrap;gap:6px}
+.st button{padding:6px 10px;font-weight:600;background:transparent;color:var(--ink);border:1px solid var(--line)}
+.st button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -52,6 +61,12 @@ pre{margin:0;padding:16px;white-space:pre-wrap;word-break:break-word;font:15px/1
   <h1>📢 Daily announcement maker</h1>
   <p class="sub">Fill in the forms, change any wording under Customize, then copy the finished announcement. Your changes are saved in this browser.</p>
 
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="ann" aria-selected="true">📢 Daily announcement</button>
+    <button type="button" role="tab" data-tab="clean" aria-selected="false">🧹 Cleaners update</button>
+  </div>
+
+  <div id="tab-ann">
   <div class="grid">
     <div>
       <details open><summary>🏫 Class info</summary><div class="body">
@@ -94,11 +109,44 @@ pre{margin:0;padding:16px;white-space:pre-wrap;word-break:break-word;font:15px/1
       <pre id="out"></pre>
     </div>
   </div>
+  </div>
+
+  <div id="tab-clean" hidden>
+  <div class="grid">
+    <div>
+      <details open><summary>📅 Day and date</summary><div class="body">
+        <div class="two">
+          <label>Weekday<select id="cDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option></select></label>
+          <label>Date <small>(MM/DD/YY)</small><input type="text" id="cDate"></label>
+        </div>
+      </div></details>
+
+      <details open><summary>🧹 Cleaners</summary><div class="body">
+        <label>Names for <span id="cDayName"></span> <small>(one per line, saved in this browser)</small><textarea id="cRoster" rows="6"></textarea></label>
+        <p class="hint" id="cHint"></p>
+        <div class="row"><button class="ghost" id="cAll" type="button">Mark everyone: cleaned the room</button><button class="ghost danger" id="cClear" type="button">Clear marks</button></div>
+        <div id="cList"></div>
+      </div></details>
+    </div>
+
+    <div class="pv" aria-live="polite">
+      <div class="pvh"><b>Live preview</b><button id="copyC" type="button">Copy update</button></div>
+      <pre id="outC"></pre>
+    </div>
+  </div>
+  </div>
 </div>
 
 <script>
 var KEY = "daily-announcement-maker-v1";
 var DEFAULTS = {
+  roster: {
+    Monday: "Arcillas\nDela Cruz\nFrancisco\nGetizo\nLego\nManlapaz\nOstaco\nSingun",
+    Tuesday: "Barbara\nDonarber\nGalzote\nGregorio\nLiporada\nMasubay, Irah\nPatiag\nSanchez\nToh",
+    Wednesday: "",
+    Thursday: "Cea\nFelizarta\nGambia\nJacinto\nLorion\nMasubay, Reina\nPresto\nSebastian\nVerano",
+    Friday: "Chua\nFernandez\nGanaan\nJoson\nMagpantay\nMercado\nReyes\nSeminyano\nVinluan"
+  },
   intro: {section:"", grade:"", officer:"", date:"", dayType:"", closingToday:""},
   cfg: {
     types: "PTASK\nHomework\nSitwork\nOral Recitation\nPalaro",
@@ -111,11 +159,11 @@ var DEFAULTS = {
 function blankSubject(){return {subject:"",type:"",instructions:"",guide:"",source:"",deadline:"",teacher:""};}
 function clone(o){return JSON.parse(JSON.stringify(o));}
 function load(){
-  var s = {intro:clone(DEFAULTS.intro), cfg:clone(DEFAULTS.cfg), subjects:[blankSubject()]};
+  var s = {intro:clone(DEFAULTS.intro), cfg:clone(DEFAULTS.cfg), roster:clone(DEFAULTS.roster), subjects:[blankSubject()]};
   try{
     var raw = localStorage.getItem(KEY);
     if(raw){var l = JSON.parse(raw);
-      Object.assign(s.intro, l.intro||{}); Object.assign(s.cfg, l.cfg||{});
+      Object.assign(s.intro, l.intro||{}); Object.assign(s.cfg, l.cfg||{}); Object.assign(s.roster, l.roster||{});
       if(Array.isArray(l.subjects) && l.subjects.length) s.subjects = l.subjects;}
   }catch(e){}
   return s;
@@ -202,23 +250,95 @@ document.addEventListener("click", function(e){
     if(el.getAttribute("data-armed")!=="1"){el.setAttribute("data-armed","1"); el.textContent="Click again to reset";
       setTimeout(function(){el.removeAttribute("data-armed"); el.textContent="Reset everything";},3000); return;}
     try{localStorage.removeItem(KEY);}catch(x){}
-    S = load(); fillStatic(); renderSubjects(); el.removeAttribute("data-armed"); el.textContent="Reset everything";
+    S = load(); fillStatic(); renderSubjects(); renderCleanAll(); el.removeAttribute("data-armed"); el.textContent="Reset everything";
   } else if(el.id==="copy"){copyText(build(), el); return;}
   else return;
   save(); render();
 });
 
-function copyText(text, btn){
-  function done(ok){btn.textContent = ok ? "Copied" : "Select the preview and copy it"; setTimeout(function(){btn.textContent="Copy announcement";},1800);}
+function copyText(text, btn, node, label){
+  node = node || out; label = label || "Copy announcement";
+  function done(ok){btn.textContent = ok ? "Copied" : "Select the preview and copy it"; setTimeout(function(){btn.textContent=label;},1800);}
   function fallback(){
-    try{var r=document.createRange(); r.selectNodeContents(out); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    try{var r=document.createRange(); r.selectNodeContents(node); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
       done(document.execCommand("copy"));}catch(e){done(false);}
   }
   if(navigator.clipboard && navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){done(true);},fallback);}
   else fallback();
 }
 
-fillStatic(); renderSubjects(); render();
+var DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+var CODES = ['e','a','ct','ctr','dnc'];
+var STATUS = {e:{i:'📝',d:'excused'}, a:{i:'❌',d:'absent'}, ct:{i:'✂️',d:'cutting'}, ctr:{i:'🧹',d:'cleaned the room'}, dnc:{i:'🚫',d:'did not clean'}};
+function pad2(n){return (n<10?'0':'')+n;}
+var today = new Date();
+var C = {day: DAYS[today.getDay()-1] || 'Monday', date: pad2(today.getMonth()+1)+'/'+pad2(today.getDate())+'/'+String(today.getFullYear()).slice(2), status:{}};
+var outC = document.getElementById('outC');
+
+function rosterNames(day){return (S.roster[day]||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);}
+
+function buildClean(){
+  var st = C.status[C.day] || {}, L = [];
+  L.push('📌 Update on '+C.day+' cleaners', '', '🗓️ '+(C.date.trim()||'N/A'), '');
+  CODES.forEach(function(k){L.push(STATUS[k].i+' '+k+' : '+STATUS[k].d);});
+  L.push('');
+  var names = rosterNames(C.day);
+  if(!names.length) L.push('(No cleaners listed yet)');
+  names.forEach(function(n){
+    var k = st[n];
+    L.push(k ? STATUS[k].i+' '+n.toLowerCase()+' = '+k : '❔ '+n.toLowerCase()+' = ?');
+  });
+  return L.join('\n');
+}
+
+function renderChecklist(){
+  var st = C.status[C.day] || {}, names = rosterNames(C.day);
+  document.getElementById('cList').innerHTML = names.length ? names.map(function(n,idx){
+    return '<div class="cl"><b>'+esc(n)+'</b><div class="st">'+CODES.map(function(k){
+      return '<button type="button" data-cn="'+idx+'" data-ck="'+k+'" aria-pressed="'+(st[n]===k)+'" title="'+STATUS[k].d+'">'+STATUS[k].i+' '+STATUS[k].d.charAt(0).toUpperCase()+STATUS[k].d.slice(1)+'</button>';
+    }).join('')+'</div></div>';
+  }).join('') : '<p class="hint">No names yet. Type them in the box above, one per line.</p>';
+}
+
+function renderCleanAll(){
+  document.getElementById('cDay').value = C.day;
+  document.getElementById('cDate').value = C.date;
+  document.getElementById('cDayName').textContent = C.day;
+  document.getElementById('cRoster').value = S.roster[C.day] || '';
+  document.getElementById('cHint').textContent = C.day==='Wednesday' ? 'Wednesday cleaners are the ones listed on the board or by the officers, so type their names here.' : '';
+  renderChecklist(); outC.textContent = buildClean();
+}
+
+function showTab(t){
+  document.getElementById('tab-ann').hidden = t!=='ann';
+  document.getElementById('tab-clean').hidden = t!=='clean';
+  document.querySelectorAll('[data-tab]').forEach(function(b){b.setAttribute('aria-selected', String(b.getAttribute('data-tab')===t));});
+}
+
+document.addEventListener('click', function(e){
+  var el = e.target.closest('button'); if(!el) return;
+  var st = C.status[C.day] = C.status[C.day] || {};
+  if(el.hasAttribute('data-tab')){showTab(el.getAttribute('data-tab'));}
+  else if(el.hasAttribute('data-ck')){
+    var n = rosterNames(C.day)[+el.getAttribute('data-cn')], k = el.getAttribute('data-ck');
+    if(st[n]===k) delete st[n]; else st[n] = k;
+    renderChecklist(); outC.textContent = buildClean();
+  } else if(el.id==='cAll'){
+    rosterNames(C.day).forEach(function(n){st[n]='ctr';}); renderChecklist(); outC.textContent = buildClean();
+  } else if(el.id==='cClear'){
+    C.status[C.day] = {}; renderChecklist(); outC.textContent = buildClean();
+  } else if(el.id==='copyC'){copyText(buildClean(), el, outC, 'Copy update');}
+});
+document.addEventListener('input', function(e){
+  var el = e.target;
+  if(el.id==='cRoster'){S.roster[C.day] = el.value; save(); renderChecklist(); outC.textContent = buildClean();}
+  else if(el.id==='cDate'){C.date = el.value; outC.textContent = buildClean();}
+});
+document.addEventListener('change', function(e){
+  if(e.target.id==='cDay'){C.day = e.target.value; renderCleanAll();}
+});
+
+fillStatic(); renderSubjects(); render(); renderCleanAll();
 </script>
 </body>
 </html>
